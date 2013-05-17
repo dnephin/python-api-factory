@@ -1,9 +1,17 @@
 from collections import namedtuple
+import httplib
 import requests
 import urlparse
+from apifactory import strategy, spec
 
 
 HTTPRequest = namedtuple('HTTPRequest', 'path method query data headers')
+
+class HTTPNotFound(strategy.ClientError):
+    """404"""
+
+class HTTPBadRequest(strategy.ClientError):
+    """400"""
 
 
 class HTTPTransport(object):
@@ -32,9 +40,50 @@ class HTTPTransport(object):
         return requests.request(
             http_request.method,
             self.build_url(http_request.path),
-            query=http_request.query,
+            params=http_request.query,
             data=http_request.data,
             headers=http_request.headers)
 
     def receive(self, api_spec, response):
         return api_spec.output_schema.deserialize(response.json)
+
+
+class HTTPErrorStrategy(object):
+
+    def handle(self, func):
+        response = func()
+        status_code = response.status_code
+        if status_code == httplib.OK:
+            return response
+        if status_code == httplib.NOT_FOUND:
+            raise HTTPNotFound()
+        if status_code == httplib.BAD_REQUEST:
+            raise HTTPBadRequest()
+        raise strategy.ServiceNotAvailable()
+
+
+class HTTPRetryStrategy(object):
+
+    def __init__(self, retry_count=3):
+        self.retry_count = retry_count
+
+    def retry(self, func):
+        for _ in xrange(self.retry_count):
+            try:
+                return func()
+            except strategy.ServiceNotAvailable:
+                continue
+        raise
+
+
+DEFAULT_GET = spec.RequestSpec(HTTPRetryStrategy(), HTTPErrorStrategy())
+
+
+def GET(name, input_schema, output_schema):
+    """Factory method for creating APISpecs with the GET method."""
+    return spec.APISpec(name, 'GET', input_schema, output_schema)
+
+
+def POST(name, input_schema, output_schema):
+    """Factory method for creating APISpecs with the POST method."""
+    return spec.APISpec(name, 'POST', input_schema, output_schema)

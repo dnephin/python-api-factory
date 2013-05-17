@@ -30,14 +30,22 @@ class ITransport(object):
 class IRetryStrategy(object):
 
     def retry(self, func):
+        """Called with an IErrorStrategy.handle callable. Should call func()
+        and retry on appropriate exceptions, or raise the current exception.
+        Return the result of func() on success.
+        """
         pass
 
 
 class IErrorStrategy(object):
 
     def handle(self, func):
+        """Called with an Itransport.send callable. Should call func() handle
+        exceptions (or error responses derived from the response of func())
+        and return the result of func() on success. Raise appropriate exceptions
+        on errors. Raised errors will be handled by an IRetryStrategy.
+        """
         pass
-
 
 
 class ISchema(object):

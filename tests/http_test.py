@@ -36,7 +36,7 @@ class HTTPTransportTestCase(TestCase):
         mock_request.assert_called_with(
             http_request.method,
             'http://localhost:8080/what',
-            query=http_request.query,
+            params=http_request.query,
             data=http_request.data,
             headers=http_request.headers)
 
