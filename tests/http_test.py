@@ -1,5 +1,6 @@
 import mock
 from testify import TestCase, assert_equal, setup
+from testify.assertions import assert_raises
 
 from apifactory import http, interfaces
 from apifactory import spec
@@ -47,3 +48,23 @@ class HTTPTransportTestCase(TestCase):
         output = self.transport.receive(self.api_spec, response)
         assert_equal(output, api_spec.response_schema.deserialize.return_value)
         api_spec.response_schema.deserialize.assert_called_with(response.json)
+
+
+class AsyncTestCase(TestCase):
+
+    @setup
+    def setup_async(self):
+        self.wrapped = mock.create_autospec(interfaces.IErrorStrategy)
+        self.async = http.Async(self.wrapped)
+
+    def test__getattr__method_does_not_exist(self):
+        assert_raises(AttributeError, getattr, self.async, 'bogus_method')
+
+    def test__getattr__(self):
+        response = mock.Mock()
+        future = self.async.handle(response)
+        assert_equal(self.wrapped.handle.mock_calls, [])
+        response.assert_called_with()
+
+        assert_equal(future(), self.wrapped.handle.return_value)
+        assert_equal(self.wrapped.handle.call_count, 1)

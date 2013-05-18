@@ -1,5 +1,6 @@
 from collections import namedtuple
 import httplib
+import functools
 import requests
 import urlparse
 from apifactory import strategy, spec
@@ -14,6 +15,18 @@ class HTTPBadRequest(strategy.ClientError):
     """400"""
 
 
+def build_http_request(api_spec, request_data):
+    def get_data_query(method, request_schema, request_data):
+        if method == 'POST':
+            return request_schema.serialize(request_data), None
+        return None, request_schema.serialize(request_data)
+
+    data, query = get_data_query(
+        api_spec.method, api_spec.request_schema, request_data)
+
+    return HTTPRequest(api_spec.name, api_spec.method, query, data, None)
+
+
 class HTTPTransport(object):
     """Simple synchronous HTTP transport using requests library."""
 
@@ -21,16 +34,7 @@ class HTTPTransport(object):
         self.host = host
         self.port = port
 
-    def get_data_query(self, method, request_schema, request_data):
-        if method == 'POST':
-            return request_schema.serialize(request_data), None
-        return None, request_schema.serialize(request_data)
-
-    def build(self, api_spec, request_data):
-        data, query = self.get_data_query(
-            api_spec.method, api_spec.request_schema, request_data)
-
-        return HTTPRequest(api_spec.name, api_spec.method, query, data, None)
+    build = staticmethod(build_http_request)
 
     def build_url(self, path):
         parts = 'http', '%s:%s' % (self.host, self.port), path, None, None, None
@@ -87,3 +91,31 @@ def GET(name, request_schema, response_schema):
 def POST(name, request_schema, response_schema):
     """Factory method for creating APISpecs with the POST method."""
     return spec.APISpec(name, 'POST', request_schema, response_schema)
+
+
+# TODO: move to async module? not really http specific
+class Async(object):
+    """Transform a strategy object to work with futures returned by asynchronous
+    http transport.
+    """
+    def __init__(self, wrapped):
+        self.wrapped = wrapped
+
+    def __getattr__(self, item):
+        if not hasattr(self.wrapped, item):
+            raise AttributeError(item)
+
+        def make_call(func):
+            resp_future = func()
+            def future_wrapper(timeout=None):
+                func = functools.partial(resp_future, timeout=timeout)
+                return getattr(self.wrapped, item)(func)
+            return future_wrapper
+        return make_call
+
+
+def make_async(request_spec ):
+    """Convert a RequestSpec to use async strategies."""
+    return spec.RequestSpec(
+        Async(request_spec.retry_strategy),
+        Async(request_spec.error_strategy))
