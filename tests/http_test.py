@@ -44,5 +44,5 @@ class HTTPTransportTestCase(TestCase):
         response = mock.Mock()
         api_spec = self.api_spec
         output = self.transport.receive(self.api_spec, response)
-        assert_equal(output, api_spec.output_schema.deserialize.return_value)
-        api_spec.output_schema.deserialize.assert_called_with(response.json)
+        assert_equal(output, api_spec.response_schema.deserialize.return_value)
+        api_spec.response_schema.deserialize.assert_called_with(response.json)

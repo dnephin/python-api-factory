@@ -1,7 +1,7 @@
 
 from collections import namedtuple
 
-APISpec = namedtuple('APISpec', 'name method input_schema output_schema')
+APISpec = namedtuple('APISpec', 'name method request_schema response_schema')
 
 RequestSpec = namedtuple('RequestSpec', 'retry_strategy error_strategy')
 

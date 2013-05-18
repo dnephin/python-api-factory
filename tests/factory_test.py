@@ -16,9 +16,9 @@ class APIClientTestCase(TestCase):
 
     @setup
     def setup_client(self):
-        input_schema = mock.create_autospec(interfaces.ISchema)
-        output_schema = mock.create_autospec(interfaces.ISchema)
-        apis = build_spec_builder(input_schema, output_schema)
+        request_schema = mock.create_autospec(interfaces.ISchema)
+        response_schema = mock.create_autospec(interfaces.ISchema)
+        apis = build_spec_builder(request_schema, response_schema)
         req_spec = RequestSpec(mock.create_autospec(interfaces.IRetryStrategy),
                                mock.create_autospec(interfaces.IErrorStrategy))
         req_spec.error_strategy.handle.side_effect = lambda f: f()

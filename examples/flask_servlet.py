@@ -53,8 +53,8 @@ def build_route(api_spec):
         @functools.wraps(f)
         def servlet(*args, **kwargs):
             data = json.loads(request.data) if api_spec.method == 'POST' else request.args
-            response = f(api_spec.input_schema.deserialize(data))
-            return json.dumps(api_spec.output_schema.serialize(response))
+            response = f(api_spec.request_schema.deserialize(data))
+            return json.dumps(api_spec.response_schema.serialize(response))
 
         url = '/%s' % api_spec.name
         app.add_url_rule(url, None, servlet, methods=[api_spec.method])

@@ -20,7 +20,7 @@ class RawSchema(object):
 class HTTPTransportHtml(http.HTTPTransport):
 
     def receive(self, api_spec, response):
-        return api_spec.output_schema.deserialize(response.content)
+        return api_spec.response_schema.deserialize(response.content)
 
 
 api_search = http.GET('search', QuerySchema(), RawSchema())
