@@ -34,14 +34,14 @@ class APIClientTestCase(TestCase):
         self.client = factory.build_client(self.client_mapping, self.transport)
 
     def test__getattr__update_one(self):
-        response = self.client.update_one('id', fresh_read=True)
+        response = self.client.update_one(id='id', fresh_read=True)
         api_spec, request_spec = self.client_mapping['update_one']
         assert_equal(response, self.transport.receive.return_value)
         self.transport.receive.assert_called_with(
             api_spec, self.transport.send.return_value)
 
         self.transport.build.assert_called_with(
-            api_spec, 'id', fresh_read=True)
+            api_spec, dict(id='id', fresh_read=True))
 
         self.transport.send.assert_called_with(
             self.transport.build.return_value)

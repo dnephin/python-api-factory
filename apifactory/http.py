@@ -21,14 +21,14 @@ class HTTPTransport(object):
         self.host = host
         self.port = port
 
-    def get_data_query(self, method, request_schema, *args, **kwargs):
+    def get_data_query(self, method, request_schema, request_data):
         if method == 'POST':
-            return request_schema.serialize(*args, **kwargs), None
-        return None, request_schema.serialize(*args, **kwargs)
+            return request_schema.serialize(request_data), None
+        return None, request_schema.serialize(request_data)
 
-    def build(self, api_spec, *args, **kwargs):
+    def build(self, api_spec, request_data):
         data, query = self.get_data_query(
-            api_spec.method, api_spec.request_schema, *args, **kwargs)
+            api_spec.method, api_spec.request_schema, request_data)
 
         return HTTPRequest(api_spec.name, api_spec.method, query, data, None)
 

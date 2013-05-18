@@ -17,11 +17,12 @@ class HTTPTransportTestCase(TestCase):
 
     def test_build(self):
         api_spec = self.api_spec
-        request = self.transport.build(api_spec, 'id', thing='foo')
+        request_data = dict(id='id', thing='foo')
+        request = self.transport.build(api_spec, request_data)
         expected = http.HTTPRequest(api_spec.name, api_spec.method,
             self.schema.serialize.return_value, None, None)
         assert_equal(request, expected)
-        self.schema.serialize.assert_called_with('id', thing='foo')
+        self.schema.serialize.assert_called_with(request_data)
 
     def test_build_url(self):
         path =  'what'

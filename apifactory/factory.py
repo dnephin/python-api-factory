@@ -24,8 +24,8 @@ class APIClient(object):
             raise AttributeError(item)
 
         api_spec, request_spec = self.client_mapping[item]
-        def make_call(*args, **kwargs):
-            request = self.transport.build(api_spec, *args, **kwargs)
+        def make_call(**request_kwargs):
+            request = self.transport.build(api_spec, request_kwargs)
             response = request_spec.retry_strategy.retry(
                 functools.partial(request_spec.error_strategy.handle,
                     functools.partial(self.transport.send, request)))

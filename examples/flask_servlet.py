@@ -10,8 +10,8 @@ from flask import request, Flask
 
 class IdSchema(object):
 
-    def serialize(self, id):
-        return {'id': id}
+    def serialize(self, request_data):
+        return request_data
 
     def deserialize(self, response):
         return int(response['id'])
@@ -19,8 +19,8 @@ class IdSchema(object):
 
 class BoolSchema(object):
 
-    def serialize(self, boolean):
-        return {'bool': boolean}
+    def serialize(self, request_data):
+        return request_data
 
     def deserialize(self, response):
         return response['bool']
@@ -67,13 +67,13 @@ mapping = {}
 
 @build_route(api_translate)
 def translate(id):
-    return mapping.get(id, 0)
+    return dict(id=mapping.get(id, 0))
 
 
 @build_route(api_add_translation)
 def add_translation((from_id, to_id)):
     mapping[from_id] = to_id
-    return True
+    return dict(bool=True)
 
 
 if __name__ == "__main__":

@@ -7,8 +7,8 @@ from apifactory import http, factory, spec
 
 class QuerySchema(object):
 
-    def serialize(self, *args, **kwargs):
-        return {'q': args[0]}
+    def serialize(self, request_data):
+        return request_data
 
 
 class RawSchema(object):
@@ -33,4 +33,4 @@ client_mapping = {
 
 http_client = factory.build_client(client_mapping, transport)
 
-print http_client.search('stars')
+print http_client.search(q='stars')

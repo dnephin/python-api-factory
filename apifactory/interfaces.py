@@ -50,7 +50,7 @@ class IErrorStrategy(object):
 
 class ISchema(object):
 
-    def serialize(self, *args, **kwargs):
+    def serialize(self, request_data):
         """Serialize method arguments for a request."""
         pass
 
