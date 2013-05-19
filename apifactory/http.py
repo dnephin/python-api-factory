@@ -54,9 +54,12 @@ class HTTPTransport(object):
 
 class HTTPErrorStrategy(object):
 
+    def __init__(self, status_code_attr='status_code'):
+        self.status_code_attr = status_code_attr
+
     def handle(self, func):
         response = func()
-        status_code = response.status_code
+        status_code = getattr(response, self.status_code_attr)
         if status_code == httplib.OK:
             return response
         if status_code == httplib.NOT_FOUND:
