@@ -114,7 +114,7 @@ class Async(object):
         return make_call
 
 
-def make_async(request_spec ):
+def make_async(request_spec):
     """Convert a RequestSpec to use async strategies."""
     return spec.RequestSpec(
         Async(request_spec.retry_strategy),

@@ -8,7 +8,7 @@ These service primarily as documentation and testing with mock.create_autospec()
 class ITransport(object):
     """Response for performing the transport of the API request."""
 
-    def build(self, api_spec, *args, **kwargs):
+    def build(self, api_spec, request_data):
         """Passed the api_spec, args, kwargs. Should return a Request object
         that will be passed to send().
         """
