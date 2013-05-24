@@ -2,7 +2,7 @@ import mock
 from testify import TestCase, assert_equal, setup
 from testify.assertions import assert_raises
 
-from apifactory import http, interfaces
+from apifactory import http, interfaces, schemas
 from apifactory import spec
 
 
@@ -21,9 +21,15 @@ class HTTPTransportTestCase(TestCase):
         request_data = dict(id='id', thing='foo')
         request = self.transport.build(api_spec, request_data)
         expected = http.HTTPRequest(api_spec.name, api_spec.method,
-            self.schema.serialize.return_value, None, None)
+            self.schema.serialize.return_value.get.return_value,
+            self.schema.serialize.return_value.get.return_value,
+            self.schema.serialize.return_value.get.return_value)
         assert_equal(request, expected)
         self.schema.serialize.assert_called_with(request_data)
+        assert_equal(
+            self.schema.serialize.return_value.get.mock_calls,
+            [mock.call(field) for field in ('query', 'body', 'headers')])
+
 
     def test_build_url(self):
         path =  'what'
@@ -68,3 +74,37 @@ class AsyncTestCase(TestCase):
 
         assert_equal(future(), self.wrapped.handle.return_value)
         assert_equal(self.wrapped.handle.call_count, 1)
+
+
+class HttpMetaSchemaTestCase(TestCase):
+
+    @setup
+    def setup_schema(self):
+        self.body_schema = mock.create_autospec(interfaces.ISchema)
+        self.path_schema = mock.create_autospec(interfaces.ISchema)
+        self.meta_schema = http.HttpMetaSchema(
+            body=self.body_schema,
+            path=self.path_schema)
+
+    def test_serialize(self):
+        self.body_schema.serialize.return_value = {'one': 'une', 'three': 'trois'}
+        self.path_schema.serialize.return_value = {'two': 'deux'}
+        source = {'one': 1, 'two': 2, 'three': 3}
+        output = self.meta_schema.serialize(source)
+        expected = {
+            'body': {'one': 'une', 'three': 'trois'},
+            'path': {'two': 'deux'}
+        }
+        assert_equal(output, expected)
+
+    def test_deserialize(self):
+        self.body_schema.deserialize.return_value = {'one': 'une', 'three': 'trois'}
+        self.path_schema.deserialize.return_value = {'two': 'deux'}
+        source =  mock.Mock(body={'one': 1, 'three': 3}, path={'two': 2})
+        output = self.meta_schema.deserialize(source)
+        expected = {
+            'one': 'une',
+            'two': 'deux',
+            'three': 'trois'
+        }
+        assert_equal(output, expected)

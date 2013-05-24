@@ -1,7 +1,14 @@
+import colander
 from collections import namedtuple
 import httplib
 import functools
-import requests
+import itertools
+
+try:
+    import requests
+except ImportError:
+    requests = None
+
 import urlparse
 from apifactory import strategy, spec
 
@@ -16,15 +23,15 @@ class HTTPBadRequest(strategy.ClientError):
 
 
 def build_http_request(api_spec, request_data):
-    def get_data_query(method, request_schema, request_data):
-        if method == 'POST':
-            return request_schema.serialize(request_data), None
-        return None, request_schema.serialize(request_data)
-
-    data, query = get_data_query(
-        api_spec.method, api_spec.request_schema, request_data)
-
-    return HTTPRequest(api_spec.name, api_spec.method, query, data, None)
+    # TODO: path parts from request_data
+    request_data = api_spec.request_schema.serialize(request_data)
+    path_data = request_data.get('path')
+    path = api_spec.name % path_data if path_data else api_spec.name
+    return HTTPRequest(path,
+                       api_spec.method,
+                       request_data.get('query'),
+                       request_data.get('body'),
+                       request_data.get('headers'))
 
 
 class HTTPTransport(object):
@@ -65,7 +72,7 @@ class HTTPErrorStrategy(object):
         if status_code == httplib.NOT_FOUND:
             raise HTTPNotFound()
         if status_code == httplib.BAD_REQUEST:
-            raise HTTPBadRequest()
+            raise HTTPBadRequest(response.body)
         raise strategy.ServiceNotAvailable()
 
 
@@ -122,3 +129,53 @@ def make_async(request_spec):
     return spec.RequestSpec(
         Async(request_spec.retry_strategy),
         Async(request_spec.error_strategy))
+
+
+def build_map_from_keys(source, keys):
+    return dict((key, source[key]) for key in keys if key in source)
+
+
+# TODO: make this work with HTTPTransport
+# TODO: test case
+class HttpMetaSchema(object):
+    """A schema which understands how to validate different parts of an http
+    request.
+    """
+
+    fields = ['body', 'query', 'headers', 'path']
+
+    # TODO: verify no overlaping fields
+    def __init__(self, body=None, query=None, headers=None, path=None):
+        self.body = body
+        self.query = query
+        self.headers = headers
+        self.path = path
+
+    def serialize(self, request_data):
+        """Accepts a blob dict, and returns a dict of fields."""
+        def get_values(field, keys):
+            serializer = getattr(self, field).serialize
+            value = serializer(build_map_from_keys(request_data, keys))
+            if value == colander.null:
+                return None
+            return field, value
+
+        seq = (get_values(*item) for item in self._get_field_to_keys().iteritems())
+        return dict(filter(None, seq))
+
+    # TODO: maybe make this take a dict of fields as well?
+    def deserialize(self, response):
+        """Accepts an HttpRequest/HttpResponse object and returns a dict blob."""
+        def values():
+            for field, keys in self._get_field_to_keys().iteritems():
+                values = getattr(self, field).deserialize(getattr(response, field))
+                yield values.items()
+
+        return dict(itertools.chain.from_iterable(values()))
+
+    def _get_field_to_keys(self):
+        def get_keys(field):
+            if not getattr(self, field):
+                return
+            return field, getattr(self, field).serialize({}).keys()
+        return dict(filter(None, (get_keys(field) for field in self.fields)))

@@ -1,3 +1,6 @@
 .idea
 *.pyc
 *.swp
+build/
+dist/
+apifactory.egg-info/

@@ -1,1 +1,2 @@
 test_runner_name: testify
+command: ['testify', '-x', 'disabled']
