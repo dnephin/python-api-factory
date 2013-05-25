@@ -4,6 +4,8 @@ Generic schemas.
 
 class EmptySchema(object):
 
+    validates_keys = []
+
     @classmethod
     def serialize(cls, request_data):
         return {}
@@ -13,7 +15,7 @@ class EmptySchema(object):
         return {}
 
 
-class StringSchema(object):
+class RawSchema(object):
 
     @classmethod
     def serialize(cls, request_data):

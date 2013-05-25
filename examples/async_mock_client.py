@@ -4,19 +4,15 @@ async client.
 """
 
 
-from apifactory import http, factory, spec
+from apifactory import http, factory, spec, schemas
+import colander
 
 
-class QuerySchema(object):
-
-    def serialize(self, request_data):
-        return request_data
+class QuerySchema(colander.MappingSchema):
+    q = colander.SchemaNode(colander.String())
 
 
-class RawSchema(object):
-
-    def deserialize(self, response):
-        return response
+query_schema = http.HttpMetaSchema(query=QuerySchema())
 
 
 class AsyncHTTPTransportHtml(http.HTTPTransport):
@@ -28,12 +24,11 @@ class AsyncHTTPTransportHtml(http.HTTPTransport):
 
     def receive(self, api_spec, response):
         def future(timeout=30):
-            content = response(timeout=timeout).content
-            return api_spec.response_schema.deserialize(content)
+            return api_spec.response_schema.deserialize(response(timeout=timeout))
         return future
 
 
-api_search = http.GET('search', QuerySchema(), RawSchema())
+api_search = http.GET('search', query_schema, schemas.RawSchema)
 
 
 transport = AsyncHTTPTransportHtml('google.com', 80)
@@ -46,4 +41,5 @@ http_client = factory.build_client(client_mapping, transport)
 future = http_client.search(q='stars')
 print "Future ", future
 
-print future(timeout=3)[-300:]
+body = future(timeout=3).content
+print "Found %s stars" % body.index('stars')

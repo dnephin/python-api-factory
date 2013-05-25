@@ -1,8 +1,9 @@
+import colander
 import mock
 from testify import TestCase, assert_equal, setup
 from testify.assertions import assert_raises
 
-from apifactory import http, interfaces, schemas
+from apifactory import http, interfaces, schemas, compat
 from apifactory import spec
 
 
@@ -28,8 +29,8 @@ class HTTPTransportTestCase(TestCase):
         self.schema.serialize.assert_called_with(request_data)
         assert_equal(
             self.schema.serialize.return_value.get.mock_calls,
+            [mock.call('path'), mock.call().__nonzero__()] +
             [mock.call(field) for field in ('query', 'body', 'headers')])
-
 
     def test_build_url(self):
         path =  'what'
@@ -48,12 +49,15 @@ class HTTPTransportTestCase(TestCase):
             data=http_request.data,
             headers=http_request.headers)
 
-    def test_receive(self):
+    @mock.patch('apifactory.http.JsonHttpResponse', autospec=True)
+    def test_receive(self, mock_json_response):
         response = mock.Mock()
         api_spec = self.api_spec
         output = self.transport.receive(self.api_spec, response)
         assert_equal(output, api_spec.response_schema.deserialize.return_value)
-        api_spec.response_schema.deserialize.assert_called_with(response.json)
+        mock_json_response.assert_called_with(response)
+        api_spec.response_schema.deserialize.assert_called_with(
+            mock_json_response.return_value)
 
 
 class AsyncTestCase(TestCase):
@@ -76,35 +80,70 @@ class AsyncTestCase(TestCase):
         assert_equal(self.wrapped.handle.call_count, 1)
 
 
+class FilterDictTestCase(TestCase):
+
+    def test_filter_dict(self):
+        seq = [(1,2), None, (3,4), False, 0]
+        assert_equal(http.filter_dict(seq), {1:2, 3:4})
+
+
+class GetColanderKeysTestCase(TestCase):
+
+    def test_get_colander_keys_validates_keys(self):
+        expected = mock.Mock()
+        mock_schema = mock.Mock(validates_keys=expected)
+        assert_equal(http.get_colander_keys(mock_schema), expected)
+
+    def test_get_colander_keys_from_node_names(self):
+        friend = colander.SchemaNode(colander.Tuple())
+        friend.add(colander.SchemaNode(colander.Int(),
+                   validator=colander.Range(0, 9999), name='rank'))
+        friend.add(colander.SchemaNode(colander.Int(), name='foo'))
+        assert_equal(http.get_colander_keys(friend), ['rank', 'foo'])
+
+
 class HttpMetaSchemaTestCase(TestCase):
 
     @setup
     def setup_schema(self):
-        self.body_schema = mock.create_autospec(interfaces.ISchema)
-        self.path_schema = mock.create_autospec(interfaces.ISchema)
+        self.body_schema = colander.SchemaNode(colander.Mapping())
+        self.body_schema.add(colander.SchemaNode(colander.String(), name='one'))
+        self.body_schema.add(colander.SchemaNode(colander.String(),
+                             name='three', missing=compat.drop))
+        self.path_schema = colander.SchemaNode(colander.Mapping())
+        self.path_schema.add(colander.SchemaNode(colander.String(), name='two'))
         self.meta_schema = http.HttpMetaSchema(
             body=self.body_schema,
             path=self.path_schema)
 
     def test_serialize(self):
-        self.body_schema.serialize.return_value = {'one': 'une', 'three': 'trois'}
-        self.path_schema.serialize.return_value = {'two': 'deux'}
-        source = {'one': 1, 'two': 2, 'three': 3}
+        source = {'one': 1, 'two': 2, 'three': 3, 'extra': 9}
         output = self.meta_schema.serialize(source)
         expected = {
-            'body': {'one': 'une', 'three': 'trois'},
-            'path': {'two': 'deux'}
+            'body': {'one': '1', 'three': '3'},
+            'path': {'two': '2'}
         }
         assert_equal(output, expected)
 
     def test_deserialize(self):
-        self.body_schema.deserialize.return_value = {'one': 'une', 'three': 'trois'}
-        self.path_schema.deserialize.return_value = {'two': 'deux'}
-        source =  mock.Mock(body={'one': 1, 'three': 3}, path={'two': 2})
+        source =  mock.Mock(body={'one': 1}, path={'two': 2, 'extra': 9})
         output = self.meta_schema.deserialize(source)
         expected = {
-            'one': 'une',
-            'two': 'deux',
-            'three': 'trois'
+            'one': '1',
+            'two': '2',
         }
         assert_equal(output, expected)
+
+    def test_serialize_optional(self):
+        source = {'one': 1, 'two': 2}
+        output = self.meta_schema.serialize(source)
+        expected = {
+            'body': {'one': '1'},
+            'path': {'two': '2'}
+        }
+        assert_equal(output, expected)
+
+    def test_verify_schema_uniqueness_not_unique(self):
+        self.path_schema.add(colander.SchemaNode(colander.String(), name='one'))
+        assert_raises(http.SchemaValueError,
+              http.HttpMetaSchema, body=self.body_schema, path=self.path_schema)

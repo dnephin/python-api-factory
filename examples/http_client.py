@@ -2,35 +2,26 @@
 HTML.
 """
 
-from apifactory import http, factory, spec
+import colander
+from apifactory import http, factory, spec, schemas
 
 
-class QuerySchema(object):
-
-    def serialize(self, request_data):
-        return request_data
+class QuerySchema(colander.MappingSchema):
+    q = colander.SchemaNode(colander.String())
 
 
-class RawSchema(object):
+query_schema = http.HttpMetaSchema(query=QuerySchema())
 
-    def deserialize(self, response):
-        return response
-
-
-class HTTPTransportHtml(http.HTTPTransport):
-
-    def receive(self, api_spec, response):
-        return api_spec.response_schema.deserialize(response.content)
+api_search = http.GET('search', query_schema, schemas.RawSchema)
 
 
-api_search = http.GET('search', QuerySchema(), RawSchema())
-
-
-transport = HTTPTransportHtml('google.com', 80)
+transport = http.HTTPTransport('google.com', 80)
 client_mapping = {
     'search': spec.ClientSpec(api_search, http.DEFAULT_GET)
 }
 
 http_client = factory.build_client(client_mapping, transport)
 
-print http_client.search(q='stars')
+
+body = http_client.search(q='stars').content
+print "Found %s stars" % body.count('stars')

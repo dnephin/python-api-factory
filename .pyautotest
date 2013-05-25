@@ -1,2 +1,2 @@
 test_runner_name: testify
-command: ['testify', '-x', 'disabled']
+command: ['testify', '-x', 'disabled', '-v', '--summary']
