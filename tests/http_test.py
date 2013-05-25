@@ -49,15 +49,12 @@ class HTTPTransportTestCase(TestCase):
             data=http_request.data,
             headers=http_request.headers)
 
-    @mock.patch('apifactory.http.JsonHttpResponse', autospec=True)
-    def test_receive(self, mock_json_response):
+    def test_receive(self):
         response = mock.Mock()
         api_spec = self.api_spec
         output = self.transport.receive(self.api_spec, response)
         assert_equal(output, api_spec.response_schema.deserialize.return_value)
-        mock_json_response.assert_called_with(response)
-        api_spec.response_schema.deserialize.assert_called_with(
-            mock_json_response.return_value)
+        api_spec.response_schema.deserialize.assert_called_with(response)
 
 
 class AsyncTestCase(TestCase):
