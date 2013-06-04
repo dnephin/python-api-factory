@@ -45,7 +45,6 @@ How it works
 Start by creating a specification. A specification starts as one or more APISpec
 objects. Each APISpec object identifies an API endpoint.
 
-::
 
     from apifactory import spec
     example_spec = spec.APISpec('name', 'method', request_schema, response_schema)
